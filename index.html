@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MiniCraft</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #87CEEB;
+}
+
+#info {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: Arial;
+  background: rgba(0,0,0,0.4);
+  padding: 8px;
+  border-radius: 8px;
+  z-index: 10;
+}
+
+/* Кнопки */
+.btn {
+  position: fixed;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.4);
+  color: white;
+  font-size: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+#up { left: 80px; bottom: 140px; }
+#down { left: 80px; bottom: 40px; }
+#left { left: 20px; bottom: 90px; }
+#right { left: 140px; bottom: 90px; }
+
+#hit {
+  right: 20px;
+  bottom: 80px;
+  width: 90px;
+  height: 90px;
+  background: rgba(200,50,50,0.7);
+  font-size: 20px;
+}
+</style>
+</head>
+<body>
+
+<div id="info">MiniCraft — кнопки для движения, красная — бить</div>
+
+<div id="up" class="btn">⬆️</div>
+<div id="down" class="btn">⬇️</div>
+<div id="left" class="btn">⬅️</div>
+<div id="right" class="btn">➡️</div>
+<div id="hit" class="btn">БИТЬ</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+<script>
+const canvas = document.createElement("canvas");
+canvas.style.width = "100%";
+canvas.style.height = "100%";
+document.body.appendChild(canvas);
+
+const engine = new BABYLON.Engine(canvas, true);
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color3(0.5, 0.8, 1.0);
+
+// Включаем коллизии и гравитацию
+scene.collisionsEnabled = true;
+scene.gravity = new BABYLON.Vector3(0, -0.2, 0);
+
+// Камера (ИСПРАВЛЕННАЯ!)
+const camera = new BABYLON.UniversalCamera("cam", new BABYLON.Vector3(0, 2, -6), scene);
+camera.attachControl(canvas, true);
+camera.speed = 0.25;
+camera.applyGravity = true;
+camera.ellipsoid = new BABYLON.Vector3(0.5, 1, 0.5);
+camera.checkCollisions = true;
+
+// СМОТРЕТЬ В ЦЕНТР
+camera.setTarget(new BABYLON.Vector3(0, 0, 0));
+
+// Свет
+new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0,1,0), scene);
+
+// Материал травы
+const grassMat = new BABYLON.StandardMaterial("grass", scene);
+grassMat.diffuseColor = new BABYLON.Color3(0.3, 0.7, 0.3);
+
+// Земля из блоков
+for (let x = -15; x <= 15; x++) {
+  for (let z = -15; z <= 15; z++) {
+    const box = BABYLON.MeshBuilder.CreateBox("b", {size:1}, scene);
+    box.position.set(x, -1, z); // 👈 ВАЖНО: ниже камеры
+    box.material = grassMat;
+    box.checkCollisions = true;
+  }
+}
+
+// 👉 ТЕСТ-БЛОК ПЕРЕД НОСОМ (чтобы 100% было видно)
+const testBox = BABYLON.MeshBuilder.CreateBox("test", {size:1}, scene);
+testBox.position.set(0, 0, 2);
+testBox.material = new BABYLON.StandardMaterial("t", scene);
+testBox.material.diffuseColor = new BABYLON.Color3(1,0,0);
+
+// Управление кнопками
+const move = { forward:false, back:false, left:false, right:false };
+
+function bind(id, key) {
+  const el = document.getElementById(id);
+  el.addEventListener("touchstart", ()=> move[key]=true);
+  el.addEventListener("touchend", ()=> move[key]=false);
+}
+
+bind("up","forward");
+bind("down","back");
+bind("left","left");
+bind("right","right");
+
+// Движение
+scene.onBeforeRenderObservable.add(() => {
+  const f = camera.getDirection(BABYLON.Axis.Z);
+  const r = camera.getDirection(BABYLON.Axis.X);
+
+  if (move.forward) camera.moveWithCollisions(f.scale(0.15));
+  if (move.back) camera.moveWithCollisions(f.scale(-0.15));
+  if (move.left) camera.moveWithCollisions(r.scale(-0.15));
+  if (move.right) camera.moveWithCollisions(r.scale(0.15));
+});
+
+// Кнопка "бить"
+document.getElementById("hit").addEventListener("touchstart", () => {
+  testBox.dispose();
+});
+
+// Запуск
+engine.runRenderLoop(() => scene.render());
+window.addEventListener("resize", () => engine.resize());
+</script>
+
+</body>
+</html>
