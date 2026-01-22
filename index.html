@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MiniCraft</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+html, body { margin:0; padding:0; overflow:hidden; background:#87CEEB; }
+#info {
+ position:fixed;
+ top:10px;
+ left:10px;
+ color:white;
+ font-family:Arial;
+ background:rgba(0,0,0,0.4);
+ padding:8px;
+ border-radius:8px;
+}
+</style>
+</head>
+<body>
+<div id="info">MiniCraft — загрузка...</div>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script>
+const canvas = document.createElement("canvas");
+canvas.style.width = "100%";
+canvas.style.height = "100%";
+document.body.appendChild(canvas);
+
+const engine = new BABYLON.Engine(canvas, true);
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color3(0.5, 0.8, 1.0);
+
+// Камера
+const camera = new BABYLON.UniversalCamera("cam", new BABYLON.Vector3(0, 3, -5), scene);
+camera.attachControl(canvas, true);
+camera.speed = 0.3;
+camera.applyGravity = true;
+camera.ellipsoid = new BABYLON.Vector3(0.5, 1, 0.5);
+
+// Свет
+new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0,1,0), scene);
+
+// Земля из блоков
+for (let x = -10; x <= 10; x++) {
+  for (let z = -10; z <= 10; z++) {
+    const box = BABYLON.MeshBuilder.CreateBox("b", {size:1}, scene);
+    box.position.x = x;
+    box.position.y = 0;
+    box.position.z = z;
+    const mat = new BABYLON.StandardMaterial("m", scene);
+    mat.diffuseColor = new BABYLON.Color3(0.3, 0.7, 0.3);
+    box.material = mat;
+    box.checkCollisions = true;
+  }
+}
+
+// Пол и коллизии
+scene.collisionsEnabled = true;
+camera.checkCollisions = true;
+
+// Гравитация
+scene.gravity = new BABYLON.Vector3(0, -0.2, 0);
+
+// Текст
+document.getElementById("info").innerText = "MiniCraft — ходи, смотри по сторонам 🙂";
+
+engine.runRenderLoop(() => scene.render());
+window.addEventListener("resize", () => engine.resize());
+</script>
+</body>
+</html>
