@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MiniCraft</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #87CEEB;
+}
+#info {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: Arial;
+  background: rgba(0,0,0,0.5);
+  padding: 8px;
+  border-radius: 8px;
+  z-index: 10;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+</style>
+</head>
+<body>
+
+<div id="info">MiniCraft — загрузка...</div>
+<canvas id="game"></canvas>
+
+<!-- ДРУГОЙ CDN -->
+<script src="https://unpkg.com/babylonjs@6.32.0/babylon.js"></script>
+
+<script>
+const canvas = document.getElementById("game");
+const engine = new BABYLON.Engine(canvas, true);
+
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color3(0.5, 0.8, 1);
+
+// Свет
+new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+// Камера
+const camera = new BABYLON.UniversalCamera("cam", new BABYLON.Vector3(0, 3, -6), scene);
+camera.setTarget(new BABYLON.Vector3(0, 0, 0));
+camera.attachControl(canvas, true);
+camera.speed = 0.3;
+
+// Блоки
+const grassMat = new BABYLON.StandardMaterial("g", scene);
+grassMat.diffuseColor = new BABYLON.Color3(0.3, 0.8, 0.3);
+
+for (let x = -10; x <= 10; x++) {
+  for (let z = -10; z <= 10; z++) {
+    const b = BABYLON.MeshBuilder.CreateBox("b", {size:1}, scene);
+    b.position.set(x, 0, z);
+    b.material = grassMat;
+  }
+}
+
+document.getElementById("info").innerText = "MiniCraft — проведи пальцем чтобы смотреть 🙂";
+
+engine.runRenderLoop(() => {
+  scene.render();
+});
+
+window.addEventListener("resize", () => {
+  engine.resize();
+});
+</script>
+
+</body>
+</html>
