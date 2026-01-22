@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MiniCraft</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+html, body { margin:0; padding:0; overflow:hidden; background:#87CEEB; touch-action:none; }
+
+#info {
+ position:fixed;
+ top:10px;
+ left:10px;
+ color:white;
+ font-family:Arial;
+ background:rgba(0,0,0,0.4);
+ padding:8px;
+ border-radius:8px;
+ z-index:10;
+}
+
+#controls {
+ position:fixed;
+ bottom:20px;
+ left:20px;
+ z-index:10;
+}
+
+.ctrl {
+ width:60px;
+ height:60px;
+ margin:5px;
+ border-radius:50%;
+ background:rgba(0,0,0,0.5);
+ color:white;
+ font-size:24px;
+ border:none;
+}
+
+#attack {
+ position:fixed;
+ right:20px;
+ bottom:40px;
+ width:90px;
+ height:90px;
+ border-radius:50%;
+ background:rgba(200,0,0,0.6);
+ color:white;
+ font-size:18px;
+ border:none;
+ z-index:10;
+}
+</style>
+</head>
+<body>
+
+<div id="info">MiniCraft — кнопки для движения, красная — бить</div>
+
+<div id="controls">
+  <div style="text-align:center;">
+    <button class="ctrl" id="up">⬆️</button>
+  </div>
+  <div>
+    <button class="ctrl" id="left">⬅️</button>
+    <button class="ctrl" id="down">⬇️</button>
+    <button class="ctrl" id="right">➡️</button>
+  </div>
+</div>
+
+<button id="attack">БИТЬ</button>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script>
+const canvas = document.createElement("canvas");
+canvas.style.width = "100%";
+canvas.style.height = "100%";
+document.body.appendChild(canvas);
+
+const engine = new BABYLON.Engine(canvas, true);
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color3(0.5, 0.8, 1.0);
+
+scene.collisionsEnabled = true;
+scene.gravity = new BABYLON.Vector3(0, -0.2, 0);
+
+// Камера
+const camera = new BABYLON.UniversalCamera("cam", new BABYLON.Vector3(0, 3, -5), scene);
+camera.attachControl(canvas, true);
+camera.speed = 0.2;
+camera.applyGravity = true;
+camera.ellipsoid = new BABYLON.Vector3(0.5, 1, 0.5);
+camera.checkCollisions = true;
+
+// Свет
+new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0,1,0), scene);
+
+// Материалы
+const grassMat = new BABYLON.StandardMaterial("g", scene);
+grassMat.diffuseColor = new BABYLON.Color3(0.3, 0.7, 0.3);
+
+// Блоки
+const blocks = [];
+
+for (let x = -10; x <= 10; x++) {
+  for (let z = -10; z <= 10; z++) {
+    const box = BABYLON.MeshBuilder.CreateBox("b", {size:1}, scene);
+    box.position.set(x, 0, z);
+    box.material = grassMat;
+    box.checkCollisions = true;
+    blocks.push(box);
+  }
+}
+
+// ===== Управление =====
+const move = { forward:false, back:false, left:false, right:false };
+
+function bindButton(id, prop) {
+  const el = document.getElementById(id);
+  el.addEventListener("touchstart", e => { e.preventDefault(); move[prop] = true; });
+  el.addEventListener("touchend", e => { e.preventDefault(); move[prop] = false; });
+}
+
+bindButton("up", "forward");
+bindButton("down", "back");
+bindButton("left", "left");
+bindButton("right", "right");
+
+// ===== Ломание блоков =====
+let attack = false;
+const attackBtn = document.getElementById("attack");
+
+attackBtn.addEventListener("touchstart", e => { e.preventDefault(); attack = true; });
+attackBtn.addEventListener("touchend", e => { e.preventDefault(); attack = false; });
+
+const ray = new BABYLON.Ray();
+
+function tryBreakBlock() {
+  const origin = camera.position.clone();
+  const forward = camera.getForwardRay().direction;
+  const raycast = scene.pickWithRay(new BABYLON.Ray(origin, forward, 4));
+  if (raycast.hit && raycast.pickedMesh) {
+    raycast.pickedMesh.dispose();
+  }
+}
+
+// ===== Игровой цикл =====
+engine.runRenderLoop(() => {
+
+  let dir = BABYLON.Vector3.Zero();
+
+  if (move.forward) dir.addInPlace(camera.getDirection(BABYLON.Axis.Z));
+  if (move.back) dir.addInPlace(camera.getDirection(BABYLON.Axis.Z).scale(-1));
+  if (move.left) dir.addInPlace(camera.getDirection(BABYLON.Axis.X).scale(-1));
+  if (move.right) dir.addInPlace(camera.getDirection(BABYLON.Axis.X));
+
+  camera.moveWithCollisions(dir.scale(0.1));
+
+  if (attack) {
+    tryBreakBlock();
+  }
+
+  scene.render();
+});
+
+window.addEventListener("resize", () => engine.resize());
+</script>
+</body>
+</html>
