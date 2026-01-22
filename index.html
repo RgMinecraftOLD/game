@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MiniCraft</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+html, body { 
+  margin:0; 
+  padding:0; 
+  overflow:hidden; 
+  background:#87CEEB; 
+}
+#info {
+ position:fixed;
+ top:10px;
+ left:10px;
+ color:white;
+ font-family:Arial;
+ background:rgba(0,0,0,0.4);
+ padding:8px;
+ border-radius:8px;
+ z-index:10;
+}
+canvas {
+  touch-action: none;
+}
+</style>
+</head>
+<body>
+<div id="info">MiniCraft — левый джойстик ходьба, правой частью экрана смотришь 🙂</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+<script>
+const canvas = document.createElement("canvas");
+canvas.style.width = "100%";
+canvas.style.height = "100%";
+document.body.appendChild(canvas);
+
+const engine = new BABYLON.Engine(canvas, true);
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color3(0.5, 0.8, 1.0);
+
+// Включаем гравитацию и коллизии
+scene.gravity = new BABYLON.Vector3(0, -0.2, 0);
+scene.collisionsEnabled = true;
+
+// Камера (исправленная)
+const camera = new BABYLON.UniversalCamera("cam", new BABYLON.Vector3(0, 5, -10), scene);
+camera.setTarget(new BABYLON.Vector3(0, 0, 0));
+camera.attachControl(canvas, true);
+camera.speed = 0.4;
+camera.applyGravity = true;
+camera.checkCollisions = true;
+camera.ellipsoid = new BABYLON.Vector3(0.5, 1, 0.5);
+
+// Свет
+new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0,1,0), scene);
+
+// Материал травы
+const grassMat = new BABYLON.StandardMaterial("grass", scene);
+grassMat.diffuseColor = new BABYLON.Color3(0.3, 0.8, 0.3);
+
+// Земля из блоков
+for (let x = -15; x <= 15; x++) {
+  for (let z = -15; z <= 15; z++) {
+    const box = BABYLON.MeshBuilder.CreateBox("b", {size:1}, scene);
+    box.position.x = x;
+    box.position.y = 0;
+    box.position.z = z;
+    box.material = grassMat;
+    box.checkCollisions = true;
+  }
+}
+
+// Невидимый пол (на всякий случай)
+const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:100, height:100}, scene);
+ground.isVisible = false;
+ground.checkCollisions = true;
+
+// Рендер
+engine.runRenderLoop(() => {
+  scene.render();
+});
+
+window.addEventListener("resize", () => {
+  engine.resize();
+});
+</script>
+
+</body>
+</html>
