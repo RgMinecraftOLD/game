@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Mini Minecraft Babylon</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    touch-action: none;
+    background: #000;
+}
+
+#renderCanvas {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+}
+
+#crosshair {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 24px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#controls {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 20;
+}
+
+#movePad {
+    display: grid;
+    grid-template-columns: 60px 60px 60px;
+    grid-template-rows: 60px 60px 60px;
+    gap: 5px;
+}
+
+.btn {
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border-radius: 12px;
+    text-align: center;
+    line-height: 60px;
+    font-size: 24px;
+    user-select: none;
+}
+
+#actions {
+    display: flex;
+    gap: 10px;
+}
+
+.actionBtn {
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border-radius: 12px;
+    padding: 20px;
+    font-size: 18px;
+}
+</style>
+</head>
+<body>
+
+<canvas id="renderCanvas"></canvas>
+<div id="crosshair">+</div>
+
+<div id="controls">
+    <div id="movePad">
+        <div></div>
+        <div class="btn" id="forward">↑</div>
+        <div></div>
+
+        <div class="btn" id="left">←</div>
+        <div></div>
+        <div class="btn" id="right">→</div>
+
+        <div></div>
+        <div class="btn" id="back">↓</div>
+        <div></div>
+    </div>
+
+    <div id="actions">
+        <div class="actionBtn" id="place">🧱 Ставить</div>
+        <div class="actionBtn" id="break">👊 Ломать</div>
+        <div class="actionBtn" id="jump">⬆ Прыжок</div>
+    </div>
+</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+<script>
+const canvas = document.getElementById("renderCanvas");
+const engine = new BABYLON.Engine(canvas, true);
+
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color3(0.53, 0.81, 0.92);
+
+// Свет
+const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0,1,0), scene);
+
+// Камера игрока
+const camera = new BABYLON.UniversalCamera("cam", new BABYLON.Vector3(0, 2, -5), scene);
+camera.attachControl(canvas, true);
+camera.speed = 0.2;
+camera.applyGravity = true;
+camera.checkCollisions = true;
+camera.ellipsoid = new BABYLON.Vector3(0.4, 0.9, 0.4);
+scene.gravity = new BABYLON.Vector3(0, -0.5, 0);
+
+// Включаем коллизии
+scene.collisionsEnabled = true;
+
+// Материал блоков
+const blockMat = new BABYLON.StandardMaterial("blockMat", scene);
+blockMat.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.2);
+
+// Мир
+const blocks = [];
+
+function addBlock(x,y,z){
+    const b = BABYLON.MeshBuilder.CreateBox("b", {size:1}, scene);
+    b.position.set(x,y,z);
+    b.checkCollisions = true;
+    b.material = blockMat;
+    blocks.push(b);
+    return b;
+}
+
+// Земля
+for(let x=-20; x<=20; x++){
+    for(let z=-20; z<=20; z++){
+        addBlock(x, 0, z);
+    }
+}
+
+// Управление движением
+const keys = { forward:false, back:false, left:false, right:false };
+
+function bindBtn(id, key){
+    const el = document.getElementById(id);
+    el.addEventListener("touchstart", ()=> keys[key]=true);
+    el.addEventListener("touchend", ()=> keys[key]=false);
+}
+
+bindBtn("forward","forward");
+bindBtn("back","back");
+bindBtn("left","left");
+bindBtn("right","right");
+
+// Прыжок
+document.getElementById("jump").addEventListener("touchstart", ()=>{
+    camera.cameraDirection.y = 0.5;
+});
+
+// Луч для ломания/постройки
+const ray = new BABYLON.Ray();
+
+// Ломать
+document.getElementById("break").addEventListener("touchstart", ()=>{
+    const dir = camera.getForwardRay().direction;
+    const origin = camera.position.clone();
+    const hit = scene.pickWithRay(new BABYLON.Ray(origin, dir, 5));
+
+    if(hit.pickedMesh){
+        hit.pickedMesh.dispose();
+    }
+});
+
+// Ставить
+document.getElementById("place").addEventListener("touchstart", ()=>{
+    const dir = camera.getForwardRay().direction;
+    const origin = camera.position.clone();
+    const hit = scene.pickWithRay(new BABYLON.Ray(origin, dir, 5));
+
+    if(hit.hit){
+        const p = hit.pickedPoint.add(hit.getNormal(true));
+        addBlock(
+            Math.round(p.x),
+            Math.round(p.y),
+            Math.round(p.z)
+        );
+    }
+});
+
+// Обновление движения
+scene.onBeforeRenderObservable.add(()=>{
+    const fwd = camera.getDirection(BABYLON.Axis.Z);
+    const right = camera.getDirection(BABYLON.Axis.X);
+
+    let move = new BABYLON.Vector3(0,0,0);
+
+    if(keys.forward) move.addInPlace(fwd);
+    if(keys.back) move.subtractInPlace(fwd);
+    if(keys.left) move.subtractInPlace(right);
+    if(keys.right) move.addInPlace(right);
+
+    camera.moveWithCollisions(move.normalize().scale(camera.speed));
+});
+
+engine.runRenderLoop(()=>{
+    scene.render();
+});
+
+window.addEventListener("resize", ()=>{
+    engine.resize();
+});
+</script>
+
+</body>
+</html>
