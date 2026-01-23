@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Voxel Game iOS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+body { margin:0; overflow:hidden; background:#000; touch-action:none; }
+#crosshair {
+ position:fixed;
+ left:50%;
+ top:50%;
+ transform:translate(-50%,-50%);
+ color:white;
+ font-size:24px;
+ pointer-events:none;
+ z-index:10;
+}
+</style>
+</head>
+<body>
+
+<div id="crosshair">+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(0, 2, 5);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// light
+scene.add(new THREE.DirectionalLight(0xffffff,1));
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+
+// blocks
+const world = [];
+const geo = new THREE.BoxGeometry(1,1,1);
+const mat = new THREE.MeshLambertMaterial({color:0x55aa55});
+
+function addBlock(x,y,z){
+ const b = new THREE.Mesh(geo, mat);
+ b.position.set(x,y,z);
+ scene.add(b);
+ world.push(b);
+}
+
+// ground
+for(let x=-20;x<=20;x++){
+ for(let z=-20;z<=20;z++){
+   addBlock(x,0,z);
+ }
+}
+
+// ===== physics =====
+let velocityY = 0;
+let onGround = false;
+
+// ===== camera look =====
+let rotX = 0;
+let rotY = 0;
+let touching = false;
+let lastX=0, lastY=0;
+
+document.addEventListener("touchstart", e=>{
+ touching = true;
+ lastX = e.touches[0].clientX;
+ lastY = e.touches[0].clientY;
+});
+
+document.addEventListener("touchmove", e=>{
+ if(!touching) return;
+ const x = e.touches[0].clientX;
+ const y = e.touches[0].clientY;
+ const dx = x-lastX;
+ const dy = y-lastY;
+ lastX=x; lastY=y;
+ rotY -= dx*0.004;
+ rotX -= dy*0.004;
+ rotX = Math.max(-1.4, Math.min(1.4, rotX));
+ camera.rotation.set(rotX, rotY, 0);
+});
+
+document.addEventListener("touchend", ()=> touching=false);
+
+// ===== movement =====
+let moveForward=false, moveBack=false;
+
+document.addEventListener("touchstart", e=>{
+ if(e.touches.length===2){
+   velocityY = 0.25;
+ }
+});
+
+function animate(){
+ requestAnimationFrame(animate);
+
+ // gravity
+ velocityY -= 0.01;
+ camera.position.y += velocityY;
+
+ if(camera.position.y < 1.8){
+   camera.position.y = 1.8;
+   velocityY = 0;
+   onGround = true;
+ }
+
+ // forward movement (auto test)
+ const dir = new THREE.Vector3();
+ camera.getWorldDirection(dir);
+ dir.y = 0;
+ dir.normalize();
+ camera.position.add(dir.multiplyScalar(0.02));
+
+ renderer.render(scene, camera);
+}
+
+animate();
+
+onresize = ()=>{
+ camera.aspect = innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth, innerHeight);
+};
+</script>
+</body>
+</html>
