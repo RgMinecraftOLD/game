@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MiniCraft</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #87CEEB;
+    touch-action: none;
+}
+
+#renderCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Кнопки */
+.button {
+    position: fixed;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.3);
+    color: white;
+    font-size: 30px;
+    border: none;
+}
+
+#up    { left: 90px;  bottom: 160px; }
+#down  { left: 90px;  bottom: 20px; }
+#left  { left: 20px;  bottom: 90px; }
+#right { left: 160px; bottom: 90px; }
+
+#jump {
+    right: 20px;
+    bottom: 80px;
+    width: 110px;
+    height: 110px;
+    background: green;
+    font-size: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="renderCanvas"></canvas>
+
+<button class="button" id="up">↑</button>
+<button class="button" id="down">↓</button>
+<button class="button" id="left">←</button>
+<button class="button" id="right">→</button>
+<button class="button" id="jump">ПРЫЖОК</button>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+<script>
+const canvas = document.getElementById("renderCanvas");
+const engine = new BABYLON.Engine(canvas, true);
+
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color3(0.53, 0.81, 0.92);
+
+// Камера
+const camera = new BABYLON.UniversalCamera("cam", new BABYLON.Vector3(0, 6, -10), scene);
+camera.setTarget(BABYLON.Vector3.Zero());
+
+// Свет
+new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+// Земля
+const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 50, height: 50}, scene);
+
+// Куб (игрок)
+const player = BABYLON.MeshBuilder.CreateBox("player", {size: 1}, scene);
+player.position.y = 1;
+
+// Физика
+let velY = 0;
+let onGround = true;
+
+// Управление
+const move = { up:false, down:false, left:false, right:false };
+
+function bind(btn, key){
+    btn.addEventListener("touchstart", e => { e.preventDefault(); move[key] = true; });
+    btn.addEventListener("touchend",   e => { e.preventDefault(); move[key] = false; });
+}
+
+bind(up, "up");
+bind(down, "down");
+bind(left, "left");
+bind(right, "right");
+
+jump.addEventListener("touchstart", e => {
+    e.preventDefault();
+    if(onGround){
+        velY = 0.25;
+        onGround = false;
+    }
+});
+
+// Игровой цикл
+engine.runRenderLoop(() => {
+
+    let speed = 0.1;
+
+    if(move.up)    player.position.z += speed;
+    if(move.down)  player.position.z -= speed;
+    if(move.left)  player.position.x -= speed;
+    if(move.right) player.position.x += speed;
+
+    // Гравитация
+    velY -= 0.01;
+    player.position.y += velY;
+
+    if(player.position.y <= 1){
+        player.position.y = 1;
+        velY = 0;
+        onGround = true;
+    }
+
+    // Камера следует за игроком
+    camera.position.x = player.position.x;
+    camera.position.z = player.position.z - 10;
+
+    scene.render();
+});
+
+window.addEventListener("resize", () => engine.resize());
+</script>
+
+</body>
+</html>
