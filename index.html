@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Mini Minecraft iOS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+body { margin:0; overflow:hidden; background:#000; touch-action:none; }
+
+#crosshair {
+ position:fixed;
+ left:50%;
+ top:50%;
+ transform:translate(-50%,-50%);
+ color:white;
+ font-size:24px;
+ pointer-events:none;
+ z-index:10;
+}
+
+.btn {
+ position:fixed;
+ background:rgba(0,0,0,0.5);
+ color:white;
+ padding:14px 18px;
+ border-radius:12px;
+ font-size:18px;
+ user-select:none;
+}
+
+#up { left:80px; bottom:140px; }
+#down { left:80px; bottom:60px; }
+#left { left:20px; bottom:100px; }
+#right { left:140px; bottom:100px; }
+
+#jump { right:20px; bottom:80px; }
+#break { right:140px; bottom:80px; }
+#place { right:260px; bottom:80px; }
+</style>
+</head>
+<body>
+
+<div id="crosshair">+</div>
+
+<div class="btn" id="up">↑</div>
+<div class="btn" id="down">↓</div>
+<div class="btn" id="left">←</div>
+<div class="btn" id="right">→</div>
+
+<div class="btn" id="jump">⤒ Прыжок</div>
+<div class="btn" id="break">👊 Ломать</div>
+<div class="btn" id="place">🧱 Ставить</div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.DirectionalLight(0xffffff,1));
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+
+const world = [];
+const geo = new THREE.BoxGeometry(1,1,1);
+const mat = new THREE.MeshLambertMaterial({color:0x55aa55});
+
+function addBlock(x,y,z){
+ const b = new THREE.Mesh(geo, mat);
+ b.position.set(x,y,z);
+ scene.add(b);
+ world.push(b);
+}
+
+for(let x=-20;x<=20;x++){
+ for(let z=-20;z<=20;z++){
+  addBlock(x,0,z);
+ }
+}
+
+// ===== ИГРОК =====
+const player = {
+ pos: new THREE.Vector3(0, 3, 5),
+ vel: new THREE.Vector3(0, 0, 0),
+ onGround: false,
+ height: 1.8,
+ radius: 0.3
+};
+
+camera.position.copy(player.pos);
+
+// ===== УПРАВЛЕНИЕ =====
+const keys = { w:false, s:false, a:false, d:false };
+
+function bindBtn(id, key){
+ const el = document.getElementById(id);
+ el.addEventListener("touchstart", e=>{ e.preventDefault(); keys[key]=true; });
+ el.addEventListener("touchend", e=>{ e.preventDefault(); keys[key]=false; });
+}
+
+bindBtn("up","w");
+bindBtn("down","s");
+bindBtn("left","a");
+bindBtn("right","d");
+
+// ===== ВЗГЛЯД =====
+let rotX = 0, rotY = 0;
+let touching = false, lastX=0, lastY=0;
+
+document.addEventListener("touchstart", e=>{
+ if(e.target.classList.contains("btn")) return;
+ touching = true;
+ lastX = e.touches[0].clientX;
+ lastY = e.touches[0].clientY;
+});
+
+document.addEventListener("touchmove", e=>{
+ if(!touching) return;
+ const x = e.touches[0].clientX;
+ const y = e.touches[0].clientY;
+ const dx = x - lastX;
+ const dy = y - lastY;
+ lastX = x;
+ lastY = y;
+
+ rotY -= dx * 0.004;
+ rotX -= dy * 0.004;
+ rotX = Math.max(-1.5, Math.min(1.5, rotX));
+});
+
+document.addEventListener("touchend", ()=> touching=false);
+
+// ===== ПРЫЖОК =====
+document.getElementById("jump").addEventListener("touchstart", ()=>{
+ if(player.onGround){
+  player.vel.y = 6;
+  player.onGround = false;
+ }
+});
+
+// ===== ФИЗИКА =====
+const gravity = -12;
+const speed = 5;
+
+function collide(pos){
+ for(const b of world){
+  const dx = Math.abs(pos.x - b.position.x);
+  const dy = Math.abs(pos.y - (b.position.y+0.5));
+  const dz = Math.abs(pos.z - b.position.z);
+  if(dx<0.5 && dy<1 && dz<0.5){
+   return true;
+  }
+ }
+ return false;
+}
+
+// ===== ЛУЧ =====
+const raycaster = new THREE.Raycaster();
+
+document.getElementById("break").addEventListener("touchstart", ()=>{
+ raycaster.setFromCamera({x:0,y:0}, camera);
+ const hits = raycaster.intersectObjects(world);
+ if(hits.length){
+  const obj = hits[0].object;
+  scene.remove(obj);
+  world.splice(world.indexOf(obj),1);
+ }
+});
+
+document.getElementById("place").addEventListener("touchstart", ()=>{
+ raycaster.setFromCamera({x:0,y:0}, camera);
+ const hits = raycaster.intersectObjects(world);
+ if(hits.length){
+  const p = hits[0].point.clone().add(hits[0].face.normal);
+  addBlock(Math.round(p.x), Math.round(p.y), Math.round(p.z));
+ }
+});
+
+// ===== ЦИКЛ =====
+let last = performance.now();
+
+function animate(){
+ requestAnimationFrame(animate);
+ const now = performance.now();
+ const dt = (now-last)/1000;
+ last = now;
+
+ // движение
+ const dir = new THREE.Vector3();
+ if(keys.w) dir.z -= 1;
+ if(keys.s) dir.z += 1;
+ if(keys.a) dir.x -= 1;
+ if(keys.d) dir.x += 1;
+ dir.normalize();
+
+ const sin = Math.sin(rotY);
+ const cos = Math.cos(rotY);
+
+ const moveX = (dir.x * cos - dir.z * sin) * speed * dt;
+ const moveZ = (dir.z * cos + dir.x * sin) * speed * dt;
+
+ // гравитация
+ player.vel.y += gravity * dt;
+
+ // X
+ let newPos = player.pos.clone();
+ newPos.x += moveX;
+ if(!collide(newPos)) player.pos.x = newPos.x;
+
+ // Z
+ newPos = player.pos.clone();
+ newPos.z += moveZ;
+ if(!collide(newPos)) player.pos.z = newPos.z;
+
+ // Y
+ newPos = player.pos.clone();
+ newPos.y += player.vel.y * dt;
+
+ if(collide(newPos)){
+  if(player.vel.y < 0) player.onGround = true;
+  player.vel.y = 0;
+ } else {
+  player.pos.y = newPos.y;
+  player.onGround = false;
+ }
+
+ // камера
+ camera.position.copy(player.pos);
+ camera.rotation.set(rotX, rotY, 0);
+
+ renderer.render(scene, camera);
+}
+
+animate();
+
+onresize = ()=>{
+ camera.aspect = innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth, innerHeight);
+};
+</script>
+</body>
+</html>
