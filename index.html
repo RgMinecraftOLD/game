@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MiniCraft</title>
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      touch-action: none;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .btn {
+      position: fixed;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.4);
+      color: white;
+      font-size: 30px;
+      border: none;
+    }
+    #up { left: 100px; bottom: 180px; }
+    #down { left: 100px; bottom: 20px; }
+    #left { left: 20px; bottom: 100px; }
+    #right { left: 180px; bottom: 100px; }
+
+    #jump {
+      right: 20px;
+      bottom: 180px;
+      background: green;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <button class="btn" id="up">↑</button>
+  <button class="btn" id="down">↓</button>
+  <button class="btn" id="left">←</button>
+  <button class="btn" id="right">→</button>
+  <button class="btn" id="jump">ПРЫЖОК</button>
+
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color3(0.5, 0.8, 1);
+    scene.collisionsEnabled = true;
+    scene.gravity = new BABYLON.Vector3(0, -0.2, 0);
+
+    const camera = new BABYLON.FreeCamera("cam", new BABYLON.Vector3(0, 2, -6), scene);
+    camera.attachControl(canvas, true);
+    camera.checkCollisions = true;
+    camera.applyGravity = true;
+    camera.ellipsoid = new BABYLON.Vector3(0.4, 0.9, 0.4);
+    camera.speed = 0;
+
+    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+    // Земля
+    for (let x = -10; x <= 10; x++) {
+      for (let z = -10; z <= 10; z++) {
+        const b = BABYLON.MeshBuilder.CreateBox("g", { size: 1 }, scene);
+        b.position.set(x, 0, z);
+        b.checkCollisions = true;
+        const m = new BABYLON.StandardMaterial("m", scene);
+        m.diffuseColor = new BABYLON.Color3(0.3, 0.8, 0.3);
+        b.material = m;
+      }
+    }
+
+    // Красный блок
+    const box = BABYLON.MeshBuilder.CreateBox("box", { size: 1 }, scene);
+    box.position = new BABYLON.Vector3(0, 1, 3);
+    box.checkCollisions = true;
+    const bm = new BABYLON.StandardMaterial("bm", scene);
+    bm.diffuseColor = new BABYLON.Color3(1, 0, 0);
+    box.material = bm;
+
+    let moveX = 0;
+    let moveZ = 0;
+
+    function bind(btn, dx, dz) {
+      btn.ontouchstart = btn.onmousedown = () => { moveX = dx; moveZ = dz; };
+      btn.ontouchend = btn.onmouseup = () => { moveX = 0; moveZ = 0; };
+    }
+
+    bind(left, -1, 0);
+    bind(right, 1, 0);
+    bind(up, 0, 1);
+    bind(down, 0, -1);
+
+    jump.onclick = () => {
+      camera.cameraDirection.y = 0.25;
+    };
+
+    engine.runRenderLoop(() => {
+      const forward = camera.getDirection(new BABYLON.Vector3(0, 0, 1));
+      const right = camera.getDirection(new BABYLON.Vector3(1, 0, 0));
+
+      const speed = 0.1;
+
+      const move = forward.scale(moveZ * speed).add(
+                   right.scale(moveX * speed)
+                 );
+
+      camera.position.addInPlace(move);
+
+      scene.render();
+    });
+
+    window.addEventListener("resize", () => engine.resize());
+  </script>
+</body>
+</html>
