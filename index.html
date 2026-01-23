@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+
+<title>MiniCraft Babylon</title>
+
+<style>
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: black;
+    touch-action: none;
+}
+#ui {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+}
+.btn {
+    position: absolute;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 18px;
+    pointer-events: auto;
+    user-select: none;
+}
+#cross {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    color: white;
+    font-size: 24px;
+}
+</style>
+
+</head>
+<body>
+
+<canvas id="renderCanvas"></canvas>
+
+<div id="ui">
+    <div id="cross">+</div>
+
+    <!-- Кнопки движения -->
+    <div class="btn" id="forward" style="left:20px; bottom:140px;">↑</div>
+    <div class="btn" id="back" style="left:20px; bottom:40px;">↓</div>
+    <div class="btn" id="left" style="left:0px; bottom:90px;">←</div>
+    <div class="btn" id="right" style="left:80px; bottom:90px;">→</div>
+
+    <!-- Кнопки действий -->
+    <div class="btn" id="place" style="right:160px; bottom:80px;">🧱 Ставить</div>
+    <div class="btn" id="break" style="right:20px; bottom:80px;">👊 Ломать</div>
+    <div class="btn" id="jump" style="right:20px; bottom:160px;">⬆ Прыжок</div>
+</div>
+
+<!-- Babylon -->
+<script src="https://unpkg.com/babylonjs@6.32.0/babylon.js"></script>
+
+<script>
+const canvas = document.getElementById("renderCanvas");
+const engine = new BABYLON.Engine(canvas, true);
+
+const createScene = () => {
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color3(0.53,0.81,0.92);
+
+    const camera = new BABYLON.UniversalCamera("cam",
+        new BABYLON.Vector3(0, 3, -6), scene);
+
+    camera.attachControl(canvas, true);
+    camera.speed = 0.15;
+    camera.applyGravity = true;
+    camera.ellipsoid = new BABYLON.Vector3(0.4, 0.9, 0.4);
+    scene.gravity = new BABYLON.Vector3(0, -0.15, 0);
+    scene.collisionsEnabled = true;
+    camera.checkCollisions = true;
+
+    const light = new BABYLON.HemisphericLight("l",
+        new BABYLON.Vector3(0,1,0), scene);
+
+    const mat = new BABYLON.StandardMaterial("m", scene);
+    mat.diffuseColor = new BABYLON.Color3(0.3,0.7,0.3);
+
+    const blocks = [];
+
+    function addBlock(x,y,z){
+        const b = BABYLON.MeshBuilder.CreateBox("b",{size:1},scene);
+        b.position.set(x,y,z);
+        b.material = mat;
+        b.checkCollisions = true;
+        blocks.push(b);
+    }
+
+    // Земля
+    for(let x=-10;x<=10;x++){
+        for(let z=-10;z<=10;z++){
+            addBlock(x,0,z);
+        }
+    }
+
+    // Управление
+    const move = {f:0,b:0,l:0,r:0};
+
+    function bind(id, key){
+        const el = document.getElementById(id);
+        el.addEventListener("touchstart", e=>{ e.preventDefault(); move[key]=1; });
+        el.addEventListener("touchend", e=>{ e.preventDefault(); move[key]=0; });
+    }
+
+    bind("forward","f");
+    bind("back","b");
+    bind("left","l");
+    bind("right","r");
+
+    document.getElementById("jump").addEventListener("touchstart", ()=>{
+        camera.cameraDirection.y = 0.35;
+    });
+
+    scene.onBeforeRenderObservable.add(()=>{
+        const dir = camera.getDirection(BABYLON.Axis.Z);
+        const right = camera.getDirection(BABYLON.Axis.X);
+
+        if(move.f) camera.moveWithCollisions(dir.scale(0.1));
+        if(move.b) camera.moveWithCollisions(dir.scale(-0.1));
+        if(move.l) camera.moveWithCollisions(right.scale(-0.1));
+        if(move.r) camera.moveWithCollisions(right.scale(0.1));
+    });
+
+    // Луч
+    function castRay(){
+        const ray = scene.createPickingRay(
+            canvas.width/2, canvas.height/2,
+            BABYLON.Matrix.Identity(), camera);
+        return scene.pickWithRay(ray);
+    }
+
+    document.getElementById("break").addEventListener("click", ()=>{
+        const hit = castRay();
+        if(hit.pickedMesh){
+            hit.pickedMesh.dispose();
+        }
+    });
+
+    document.getElementById("place").addEventListener("click", ()=>{
+        const hit = castRay();
+        if(hit.pickedPoint && hit.getNormal()){
+            const p = hit.pickedPoint.add(hit.getNormal());
+            addBlock(
+                Math.round(p.x),
+                Math.round(p.y),
+                Math.round(p.z)
+            );
+        }
+    });
+
+    return scene;
+};
+
+const scene = createScene();
+engine.runRenderLoop(()=>scene.render());
+window.addEventListener("resize", ()=>engine.resize());
+</script>
+
+</body>
+</html>
